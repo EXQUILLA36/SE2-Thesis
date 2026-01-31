@@ -1,0 +1,17 @@
+# Ignore node modules
+frontend/node_modules/
+frontend/.env
+backend/node_modules/
+backend/.env
+
+# Ignore Python cache files
+python/myvenv
+python/__pycache__/
+python/*.pyc
+python/model
+
+# VS Code settings
+.vscode/
+
+.DS_Store
+.env
