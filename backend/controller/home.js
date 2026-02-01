@@ -1,7 +1,7 @@
 const axios = require("axios");
 const path = require("path");
 
-const imagePath = path.join(__dirname, "../images/sample.jpg"); 
+const imagePath = path.join(__dirname, "../images/sample2.jpg"); 
 
 const home = (req, res) => {
   res.status(201).json({ message: "Welcome to the Home Page!" });
