@@ -1,14 +1,14 @@
 # Ignore node modules
 frontend/node_modules/
 frontend/.env
-backend/node_modules/
-backend/.env
+server/node_modules/
+server/.env
 
 # Ignore Python cache files
-python/myvenv
-python/__pycache__/
-python/*.pyc
-python/model
+backend/venv
+backend/__pycache__/
+backend/*.pyc
+backend/model
 
 # VS Code settings
 .vscode/
