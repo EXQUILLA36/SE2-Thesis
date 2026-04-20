@@ -8,12 +8,14 @@ export const ScheduleProvider = ({ children }) => {
 
   const fetchSchedulesByRoom = async (roomId) => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) return null;
     try {
       const data = await getSchedulesByRoom(roomId);
       setSchedules(data);
+      return data; // Return the fetched data
     } catch (err) {
-      console.error(err);
+      console.error("[ScheduleContext] Error fetching schedules:", err);
+      return [];
     }
   };
 

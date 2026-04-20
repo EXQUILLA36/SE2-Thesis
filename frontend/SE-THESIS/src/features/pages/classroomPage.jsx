@@ -113,6 +113,38 @@ function SpecRow({ label, rooms, onCardClick, onKebabClick }) {
   );
 }
 
+// Layered specification categories
+function CategoriesScroller({
+  specKeys,
+  groupedRooms,
+  onCardClick,
+  onKebabClick,
+}) {
+  if (specKeys.length === 0) {
+    return (
+      <section className="relative flex-1 min-h-0 flex items-center justify-center">
+        <p className="text-subtitle text-[#A1A2A6] font-light">
+          No classrooms yet
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="relative flex-1 overflow-y-auto min-h-0 flex flex-col gap-8 p-4">
+      {specKeys.map((spec) => (
+        <SpecRow
+          key={spec}
+          label={spec}
+          rooms={groupedRooms[spec]}
+          onCardClick={onCardClick}
+          onKebabClick={onKebabClick}
+        />
+      ))}
+    </section>
+  );
+}
+
 export default function ClassroomPage() {
   const navigate = useNavigate();
   const { rooms, setRooms } = useRooms();
@@ -178,6 +210,16 @@ export default function ClassroomPage() {
 
   const onSubmit = async (data) => {
     try {
+      // Check if room name already exists
+      const roomExists = rooms.some(
+        (room) => room.room_name.toLowerCase() === data.cr_name.toLowerCase()
+      );
+
+      if (roomExists) {
+        toast.error("A classroom with this name already exists");
+        return;
+      }
+
       // If user is not admin, create a request instead
       if (!user?.is_admin) {
         await createClassroomRequest(data.cr_name);
@@ -221,26 +263,13 @@ export default function ClassroomPage() {
         </div>
       </section>
 
-      {/* Categorized Rows */}
-      <section className="relative flex-1 overflow-y-auto flex-wrap w-[80%] min-h-0 flex flex-col gap-8 p-4">
-        {specKeys.length === 0 ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <p className="text-subtitle text-[#A1A2A6] font-light">
-              No classrooms yet
-            </p>
-          </div>
-        ) : (
-          specKeys.map((spec) => (
-            <SpecRow
-              key={spec}
-              label={spec}
-              rooms={groupedRooms[spec]}
-              onCardClick={handleCardClick}
-              onKebabClick={handleKebabClick}
-            />
-          ))
-        )}
-      </section>
+      {/* Categorized Rows - Horizontal Scrolling */}
+      <CategoriesScroller
+        specKeys={specKeys}
+        groupedRooms={groupedRooms}
+        onCardClick={handleCardClick}
+        onKebabClick={handleKebabClick}
+      />
 
       {/* Add Classroom Popover */}
       <Popover

@@ -77,6 +77,17 @@ export default function EditClassroom({ open, onClose, roomId }) {
       if (!timeStart) { toast.error("Please set a start time"); return; }
       if (!timeEnd) { toast.error("Please set an end time"); return; }
       if (!selectedSubject || selectedSubject === "") { toast.error("Please select a subject code"); return; }
+      
+      // Validate that end time is after start time
+      const [startHour, startMinute] = timeStart.split(":").map(Number);
+      const [endHour, endMinute] = timeEnd.split(":").map(Number);
+      const startTimeInMinutes = startHour * 60 + startMinute;
+      const endTimeInMinutes = endHour * 60 + endMinute;
+      
+      if (endTimeInMinutes <= startTimeInMinutes) {
+        toast.error("End time must be after start time");
+        return;
+      }
     }
 
     try {

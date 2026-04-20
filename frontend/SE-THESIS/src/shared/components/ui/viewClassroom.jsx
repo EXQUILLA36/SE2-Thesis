@@ -774,6 +774,7 @@ export default function ViewClassroom({
 
   const toggleLights = async () => {
     const newState = !lightsOn;
+    console.log("[ViewClassroom] toggleLights called - newState:", newState, "roomId:", roomId, "roomName:", roomName);
     setLightsOn(newState);
     setDeviceState(roomId, newState, fansOn);
     const action = newState ? "turned_on" : "turned_off";
@@ -781,27 +782,40 @@ export default function ViewClassroom({
       toast.error("No relay pin assigned for this room");
       return;
     }
-    console.log("Device command sent for fans:", {
+    console.log("[ViewClassroom] Device command for lights:", {
       command: newState ? `PIN_${relayPin}_ON` : `PIN_${relayPin}_OFF`,
     });
 
-    await turnOnDevice({
-      command: newState ? `PIN_${relayPin}_ON` : `PIN_${relayPin}_OFF`,
-    });
+    try {
+      await turnOnDevice({
+        command: newState ? `PIN_${relayPin}_ON` : `PIN_${relayPin}_OFF`,
+      });
+      console.log("[ViewClassroom] Device command succeeded for lights");
+    } catch (deviceErr) {
+      console.error("[ViewClassroom] Device command failed for lights:", deviceErr);
+      toast.error(`Failed to control device: ${deviceErr.message}`);
+    }
 
+    try {
+      console.log("[ViewClassroom] Adding activity for lights:", roomName, action);
+      addActivity(roomName, action, "lights");
 
-    addActivity(roomName, action, "lights");
+      const res = await recordActivity({
+        room_id: roomId,
+        activity_message: `${roomName} lights ${newState ? "turned on" : "turned off"}`,
+      });
 
-    const res = await recordActivity({
-      room_id: roomId,
-      activity_message: `${roomName} fans ${newState ? "turned on" : "turned off"}`,
-    });
-
-    toast.success(newState ? "Lights turned on" : "Lights turned off");
+      console.log("[ViewClassroom] recordActivity response for lights:", res);
+      toast.success(newState ? "Lights turned on" : "Lights turned off");
+    } catch (activityErr) {
+      console.error("[ViewClassroom] Failed to record activity for lights:", activityErr);
+      toast.error("Action completed but failed to log activity");
+    }
   };
 
   const toggleFans = async () => {
     const newState = !fansOn;
+    console.log("[ViewClassroom] toggleFans called - newState:", newState, "roomId:", roomId, "roomName:", roomName);
     setFansOn(newState);
     setDeviceState(roomId, lightsOn, newState);
     const action = newState ? "turned_on" : "turned_off";
@@ -810,22 +824,35 @@ export default function ViewClassroom({
       return;
     }
 
-    await turnOnDevice({
-      command: newState ? `PIN_${relayPin}_ON` : `PIN_${relayPin}_OFF`,
-    });
-    console.log("Device command sent for fans:", {
-      command: newState ? `PIN_${relayPin}_ON` : `PIN_${relayPin}_OFF`,
-    });
-    addActivity(roomName, action, "fans");
+    try {
+      await turnOnDevice({
+        command: newState ? `PIN_${relayPin}_ON` : `PIN_${relayPin}_OFF`,
+      });
+      console.log("[ViewClassroom] Device command succeeded for fans");
+    } catch (deviceErr) {
+      console.error("[ViewClassroom] Device command failed for fans:", deviceErr);
+      toast.error(`Failed to control device: ${deviceErr.message}`);
+    }
 
-    const res = await recordActivity({
-      room_id: roomId,
-      activity_message: `${roomName} fans ${newState ? "turned on" : "turned off"}`,
-    });
+    try {
+      console.log("[ViewClassroom] Device command for fans:", {
+        command: newState ? `PIN_${relayPin}_ON` : `PIN_${relayPin}_OFF`,
+      });
+      console.log("[ViewClassroom] Adding activity for fans:", roomName, action);
+      addActivity(roomName, action, "fans");
 
-    console.log("Activity logged:", res);
+      const res = await recordActivity({
+        room_id: roomId,
+        activity_message: `${roomName} fans ${newState ? "turned on" : "turned off"}`,
+      });
 
-    toast.success(newState ? "Fans turned on" : "Fans turned off");
+      console.log("[ViewClassroom] recordActivity response for fans:", res);
+
+      toast.success(newState ? "Fans turned on" : "Fans turned off");
+    } catch (activityErr) {
+      console.error("[ViewClassroom] Failed to record activity for fans:", activityErr);
+      toast.error("Action completed but failed to log activity");
+    }
   };
 
   if (!open) return null;

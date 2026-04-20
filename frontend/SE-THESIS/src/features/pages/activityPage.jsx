@@ -3,7 +3,6 @@ import { useActivity } from "../../context/activityContext";
 import UnderConstruction from "@/assets/images/under_construction.png";
 import sortDown from "@/assets/icons/sortDown.png";
 import sortUp from "@/assets/icons/sortUp.png";
-import { listActivity } from "../../shared/services/activityService";
 import { useRooms } from "../../context/roomContext";
 
 export default function ActivityPage() {
@@ -14,11 +13,9 @@ export default function ActivityPage() {
     2: 10,
   });
   const scrollContainerRef = useRef(null);
-  const { getActivitiesByDate } = useActivity();
+  const { fetchAllActivities, activities, loading } = useActivity();
   const buttons = ["Today", "This Week", "This Month"];
   const [sortAsc, setSortAsc] = useState(false);
-  const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
   const { rooms } = useRooms();
 
   const filterMap = {
@@ -27,47 +24,64 @@ export default function ActivityPage() {
     2: "month",
   };
 
+  // Fetch activities for all rooms when they load
   useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        if (!rooms || rooms.length === 0) return;
+    console.log("[ActivityPage] useEffect - rooms changed:", rooms);
+    if (!rooms || rooms.length === 0) {
+      console.log("[ActivityPage] No rooms available");
+      return;
+    }
 
-        console.log("Rooms in ActivityPage:", rooms);
+    console.log("[ActivityPage] Fetching activities for", rooms.length, "rooms");
+    fetchAllActivities(rooms).catch((error) => {
+      console.error("[ActivityPage] Failed to fetch activities:", error);
+    });
+  }, [rooms, fetchAllActivities]);
 
-        const res = await listActivity(rooms[0]._id);
-        console.log("Fetched activities:", res);
-
-        setActivities(res);
-      } catch (error) {
-        console.error("Failed to fetch activities:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchActivities();
-  }, [rooms]);
+  useEffect(() => {
+    console.log("[ActivityPage] activities state updated - total count:", activities.length);
+    console.log("[ActivityPage] loading state:", loading);
+    console.log("[ActivityPage] activities:", activities);
+  }, [activities, loading]);
 
   const filteredActivities = activities
     .filter((activity) => {
-      const activityDate = new Date(activity.activity_timestamp);
+      // Handle both activity_timestamp and timestamp field names
+      const timestampStr = activity.activity_timestamp || activity.timestamp;
+      if (!timestampStr) {
+        console.warn("[ActivityPage] Activity missing timestamp:", activity);
+        return false;
+      }
+      
+      const activityDate = new Date(timestampStr);
       const now = new Date();
+      
+      // Check if date is invalid
+      if (isNaN(activityDate.getTime())) {
+        console.warn("[ActivityPage] Invalid date for activity:", timestampStr, activity);
+        return false;
+      }
 
       if (selectedButton === 0) {
-        return activityDate.toDateString() === now.toDateString();
+        const match = activityDate.toDateString() === now.toDateString();
+        console.log(`[ActivityPage] Filter 'Today': activity ${activity._id || activity.id} timestamp=${timestampStr} date=${activityDate.toDateString()} now=${now.toDateString()} => ${match}`);
+        return match;
       }
 
       if (selectedButton === 1) {
         const weekAgo = new Date(now);
         weekAgo.setDate(now.getDate() - 7);
-        return activityDate >= weekAgo;
+        const match = activityDate >= weekAgo;
+        console.log(`[ActivityPage] Filter 'Week': activity ${activity._id || activity.id} timestamp=${timestampStr} => ${match}`);
+        return match;
       }
 
       if (selectedButton === 2) {
-        return (
+        const match =
           activityDate.getMonth() === now.getMonth() &&
-          activityDate.getFullYear() === now.getFullYear()
-        );
+          activityDate.getFullYear() === now.getFullYear();
+        console.log(`[ActivityPage] Filter 'Month': activity ${activity._id || activity.id} timestamp=${timestampStr} => ${match}`);
+        return match;
       }
 
       return true;
@@ -79,9 +93,12 @@ export default function ActivityPage() {
         : new Date(b.activity_timestamp) - new Date(a.activity_timestamp),
     );
 
+  console.log("[ActivityPage] selectedButton:", selectedButton, "filteredActivities count:", filteredActivities.length, "out of", activities.length, "total");
+
   const currentDisplayCount = displayedCounts[selectedButton];
   const displayedActivities = filteredActivities.slice(0, currentDisplayCount);
   const hasMoreActivities = filteredActivities.length > currentDisplayCount;
+  console.log("[ActivityPage] Displaying", displayedActivities.length, "of", filteredActivities.length, "filtered activities");
 
   const handleLoadMore = () => {
     setDisplayedCounts((prev) => ({
@@ -100,9 +117,11 @@ export default function ActivityPage() {
   };
 
   const renderActivityMessage = (activity) => {
+    console.log("[ActivityPage] renderActivityMessage called with:", activity);
     // Handle old message format for backward compatibility
     if (activity.activity_message) {
       const message = activity.activity_message;
+      console.log("[ActivityPage] Using activity_message:", message);
 
       // Match patterns like: Lights in "classroom 3" have been turned on
       const deviceMatch = message.match(/(Lights|Fans)/i);
@@ -234,21 +253,25 @@ export default function ActivityPage() {
               ) : (
                 <>
                   <div className="flex-1">
-                    {displayedActivities.map((activity) => (
-                      <div
-                        key={activity._id}
-                        className="w-full border-b border-gray-300 p-5 primary-text flex flex-row items-center justify-between hover:bg-gray-100 transition-colors duration-200"
-                      >
-                        <div className="flex flex-col gap-1">
-                          <p className="text-subtitle text-[#4F4F4F]">
-                            {renderActivityMessage(activity)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatTime(activity.activity_timestamp)}
-                          </p>
+                    {displayedActivities.map((activity) => {
+                      const timestampStr = activity.activity_timestamp || activity.timestamp;
+                      const activityId = activity._id || activity.id;
+                      return (
+                        <div
+                          key={activityId}
+                          className="w-full border-b border-gray-300 p-5 primary-text flex flex-row items-center justify-between hover:bg-gray-100 transition-colors duration-200"
+                        >
+                          <div className="flex flex-col gap-1">
+                            <p className="text-subtitle text-[#4F4F4F]">
+                              {renderActivityMessage(activity)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {timestampStr ? formatTime(timestampStr) : "Unknown time"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   {hasMoreActivities && (
                     <div className="w-full p-4 flex justify-center border-t border-gray-300">
